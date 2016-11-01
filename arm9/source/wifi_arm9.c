@@ -37,6 +37,8 @@ SOFTWARE.
 #ifdef WIFI_USE_TCP_SGIP
 
 #include "sgIP.h"
+#include "wifi_shared.h"
+#include "dswifi9.h"
 
 
 sgIP_Hub_HWInterface * wifi_hw;
@@ -66,33 +68,6 @@ void sgIP_free(void * ptr) __attribute__((weak));
 
 
 
-//////////////////////////////////////////////////////////////////////////
-// wifi heap allocator system
-
-#define WHEAP_RECORD_FLAG_INUSE     0
-#define WHEAP_RECORD_FLAG_UNUSED    1
-#define WHEAP_RECORD_FLAG_FREED     2
-
-typedef struct WHEAP_RECORD {
-    struct WHEAP_RECORD * next;
-    unsigned short flags, unused;
-    int size;
-} wHeapRecord;
-
-#ifdef SGIP_DEBUG
-#define WHEAP_FILL_START    0xAA
-#define WHEAP_FILL_END      0xBB
-#define WHEAP_PAD_START     4
-#define WHEAP_PAD_END       4
-#define WHEAP_DO_PAD
-#else
-#define WHEAP_PAD_START     0
-#define WHEAP_PAD_END       0
-#undef WHEAP_DO_PAD
-#endif
-#define WHEAP_RECORD_SIZE   (sizeof(wHeapRecord))
-#define WHEAP_PAD_SIZE      ((WHEAP_PAD_START)+(WHEAP_PAD_END))
-#define WHEAP_SIZE_CUTOFF   ((WHEAP_RECORD_SIZE)+64)
 
 
 int wHeapsize;

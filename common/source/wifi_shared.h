@@ -170,6 +170,14 @@ enum WIFI_AUTHLEVEL {
 	WIFI_AUTHLEVEL_DEASSOCIATED,
 };
 
+// user code uses members of the WIFIGETDATA structure in calling Wifi_GetData to retreive miscellaneous odd information
+enum WIFIGETDATA {
+	WIFIGETDATA_MACADDRESS,			// MACADDRESS: returns data in the buffer, requires at least 6 bytes
+	WIFIGETDATA_NUMWFCAPS,			// NUM WFC APS: returns number between 0 and 3, doesn't use buffer.
+
+	MAX_WIFIGETDATA
+};
+
 enum WEPMODES {
 	WEPMODE_NONE = 0,
 	WEPMODE_40BIT = 1,

@@ -1,5 +1,13 @@
-	.arch	armv5te
-	.cpu	arm946e-s
+@coto: fix compiler warnings by making sure ARM7/ARM9 uses correct SWP opcodes
+#ifdef ARM7
+	.arch	armv4
+	.cpu	arm7tdmi
+#else
+	#ifdef ARM9
+		.arch	armv5te
+		.cpu	arm946e-s
+	#endif
+#endif
 
 	.text
 	.arm 
