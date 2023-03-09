@@ -7,6 +7,8 @@
 #error "Missing NDS platform lib"
 #endif
 
+#define WFC_MAX_CONN_SLOTS 6
+
 typedef enum WfcStatus {
 	WfcStatus_Disconnected = 0,
 	WfcStatus_Connecting   = 1,
