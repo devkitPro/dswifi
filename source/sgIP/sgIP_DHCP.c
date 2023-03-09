@@ -26,6 +26,7 @@ SOFTWARE.
 #include "sgIP_DHCP.h"
 #include "sgIP_DNS.h"
 #include <string.h>
+#include <unistd.h> // for gethostname/sethostname
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>

@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <stdint.h>
 
 #define IPPROTO_IP   0
 #define IPPROTO_ICMP 1

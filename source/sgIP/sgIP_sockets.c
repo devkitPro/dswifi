@@ -216,7 +216,7 @@ int connect(int socket, const struct sockaddr * addr, socklen_t addr_len) {
    SGIP_INTR_UNPROTECT();
    return retval;
 }
-int send(int socket, const void * data, int sendlength, int flags) {
+ssize_t send(int socket, const void * data, size_t sendlength, int flags) {
    if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return -1;
    SGIP_INTR_PROTECT();
    int retval=SGIP_ERROR(EINVAL);
@@ -238,7 +238,7 @@ int send(int socket, const void * data, int sendlength, int flags) {
    SGIP_INTR_UNPROTECT();
    return retval;
 }
-int recv(int socket, void * data, int recvlength, int flags) {
+ssize_t recv(int socket, void * data, size_t recvlength, int flags) {
    if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return -1;
    SGIP_INTR_PROTECT();
    int retval=SGIP_ERROR(EINVAL);
@@ -258,7 +258,7 @@ int recv(int socket, void * data, int recvlength, int flags) {
    SGIP_INTR_UNPROTECT();
    return retval;
 }
-int sendto(int socket, const void * data, int sendlength, int flags, const struct sockaddr * addr, socklen_t addr_len) {
+ssize_t sendto(int socket, const void * data, size_t sendlength, int flags, const struct sockaddr * addr, socklen_t addr_len) {
 	if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return -1;
 	if(!addr) return -1;
 	SGIP_INTR_PROTECT();
@@ -272,7 +272,7 @@ int sendto(int socket, const void * data, int sendlength, int flags, const struc
 	SGIP_INTR_UNPROTECT();
 	return retval;
 }
-int recvfrom(int socket, void * data, int recvlength, int flags, struct sockaddr * addr, socklen_t * addr_len) {
+ssize_t recvfrom(int socket, void * data, size_t recvlength, int flags, struct sockaddr * addr, socklen_t * addr_len) {
 	if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return -1;
 	if(!addr) return -1;
 	SGIP_INTR_PROTECT();

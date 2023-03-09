@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <stdint.h>
 #include <netinet/in.h>
 
 static inline uint32_t htonl(uint32_t hostlong)

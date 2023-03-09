@@ -1,5 +1,6 @@
 #pragma once
-#include <inttypes.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 #define SOCK_STREAM 1
 #define SOCK_DGRAM  2
@@ -73,26 +74,24 @@ extern "C" {
 #endif
 
 int socket(int domain, int type, int protocol);
-int bind(int socket, const struct sockaddr* addr, socklen_t addr_len);
-int connect(int socket, const struct sockaddr* addr, socklen_t addr_len);
-int send(int socket, const void* data, int sendlength, int flags); // XX: non standard
-int recv(int socket, void* data, int recvlength, int flags); // XX: non standard
-int sendto(int socket, const void* data, int sendlength, int flags, const struct sockaddr* addr, socklen_t addr_len);
-int recvfrom(int socket, void* data, int recvlength, int flags, struct sockaddr* addr, socklen_t* addr_len);
-int listen(int socket, int max_connections);
-int accept(int socket, struct sockaddr* addr, socklen_t* addr_len);
-int shutdown(int socket, int shutdown_type);
 int closesocket(int socket); // XX: non standard
 int forceclosesocket(int socket); // XX: non standard
 
-int setsockopt(int socket, int level, int option_name, const void* data, socklen_t data_len);
-int getsockopt(int socket, int level, int option_name, void* data, socklen_t* data_len);
+int accept(int socket, struct sockaddr* addr, socklen_t* addr_len);
+int bind(int socket, const struct sockaddr* addr, socklen_t addr_len);
+int connect(int socket, const struct sockaddr* addr, socklen_t addr_len);
+int shutdown(int socket, int shutdown_type);
+int listen(int socket, int max_connections);
+
+ssize_t recv(int socket, void* data, size_t recvlength, int flags);
+ssize_t recvfrom(int socket, void* data, size_t recvlength, int flags, struct sockaddr* addr, socklen_t* addr_len);
+ssize_t send(int socket, const void* data, size_t sendlength, int flags);
+ssize_t sendto(int socket, const void* data, size_t sendlength, int flags, const struct sockaddr* addr, socklen_t addr_len);
 
 int getpeername(int socket, struct sockaddr* addr, socklen_t* addr_len);
 int getsockname(int socket, struct sockaddr* addr, socklen_t* addr_len);
-
-int gethostname(char* name, size_t len);
-int sethostname(const char* name, size_t len);
+int getsockopt(int socket, int level, int option_name, void* data, socklen_t* data_len);
+int setsockopt(int socket, int level, int option_name, const void* data, socklen_t data_len);
 
 #ifdef __cplusplus
 };
