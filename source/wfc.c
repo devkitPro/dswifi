@@ -159,7 +159,7 @@ static void _wfcStartIP(void)
 	SGIP_INTR_PROTECT();
 	if (s_wfcState.dhcp_active) {
 		// Start DHCP!
-		sgIP_DHCP_Start(iface, iface->dns[0] != 0);
+		sgIP_DHCP_Start(iface, iface->dns[0] == 0);
 	} else {
 		// Send gratuituous ARP now
 		sgIP_ARP_SendGratARP(iface);
