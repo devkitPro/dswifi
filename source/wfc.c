@@ -31,6 +31,7 @@ static struct {
 
 void* sgIP_malloc(int size)
 {
+	size = (size+1)&~1;
 	return malloc(size);
 }
 
@@ -142,8 +143,8 @@ static void _wfcStartIP(void)
 		iface->snmask = (1U << (32 - slot->ipv4_subnet)) - 1;
 		s_wfcState.dhcp_active = false;
 	} else {
-		iface->ipaddr = (169<<24) | (254<<16) | 2;
-		iface->gateway = (169<<24) | (254<<16) | 1;
+		iface->ipaddr = htonl((169<<24) | (254<<16) | 2);
+		iface->gateway = htonl((169<<24) | (254<<16) | 1);
 		iface->snmask = 0xffff;
 		s_wfcState.dhcp_active = true;
 	}
@@ -355,8 +356,9 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 static void _wfcRecv(void* user, NetBuf* pPacket)
 {
 	dietPrint("[WFC] rx len=%u\n", pPacket->len);
-	sgIP_memblock* mb = sgIP_memblock_alloc(pPacket->len);
+	sgIP_memblock* mb = sgIP_memblock_alloc(2+pPacket->len);
 	if (mb) {
+		sgIP_memblock_exposeheader(mb, -2);
 		memcpy(mb->datastart, netbufGet(pPacket), pPacket->len);
 		SGIP_INTR_PROTECT();
 		sgIP_Hub_ReceiveHardwarePacket(s_wfcState.iface, mb);
