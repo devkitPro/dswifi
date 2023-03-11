@@ -55,8 +55,8 @@ int sgIP_UDP_GetUnusedOutgoingPort() {
    }
 }
 
-int sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long destip, int totallength) {
-	int checksum;
+unsigned sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long destip, int totallength) {
+	unsigned checksum;
 	if(!mb) return 0;
 	if(mb->totallength&1) mb->datastart[mb->totallength]=0;
 	checksum=sgIP_memblock_IPChecksum(mb,0,mb->totallength);
@@ -77,7 +77,7 @@ int sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
 
 int sgIP_UDP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned long destip) {
 	if(!mb) return 0;
-	int chk = sgIP_UDP_CalcChecksum(mb,srcip,destip,mb->totallength);
+	unsigned chk = sgIP_UDP_CalcChecksum(mb,srcip,destip,mb->totallength);
 	sgIP_Header_UDP * udp;
 	udp=(sgIP_Header_UDP *)mb->datastart;
 	if(chk!=0xFFFF && udp->checksum != 0) {

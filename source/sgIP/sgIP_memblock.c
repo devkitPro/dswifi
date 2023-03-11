@@ -212,8 +212,9 @@ void sgIP_memblock_trimsize(sgIP_memblock * mb, int newsize) {
 }
 
 
-int sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_length) {
-	int chksum_temp,offset;
+unsigned sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_length) {
+	unsigned chksum_temp;
+	int offset;
 	// check checksum
 	chksum_temp=0;
 	offset=0;

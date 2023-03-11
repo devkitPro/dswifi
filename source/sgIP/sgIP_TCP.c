@@ -204,8 +204,8 @@ int sgIP_TCP_GetUnusedOutgoingPort() {
 	}
 }
 
-int sgIP_TCP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long destip, int totallength) {
-	int checksum;
+unsigned sgIP_TCP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long destip, int totallength) {
+	unsigned checksum;
 	if(!mb) return 0;
 	if(mb->totallength&1) mb->datastart[mb->totallength]=0;
 	checksum=sgIP_memblock_IPChecksum(mb,0,mb->totallength);

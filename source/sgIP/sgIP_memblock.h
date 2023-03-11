@@ -53,7 +53,7 @@ extern "C" {
 	extern void sgIP_memblock_exposeheader(sgIP_memblock * mb, int change);
 	extern void sgIP_memblock_trimsize(sgIP_memblock * mb, int newsize);
 
-	extern int sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_length);
+	extern unsigned sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_length);
 	extern int sgIP_memblock_CopyToLinear(sgIP_memblock * mb, void * dest_buf, int startbyte, int copy_length);
 	extern int sgIP_memblock_CopyFromLinear(sgIP_memblock * mb, void * src_buf, int startbyte, int copy_length);
 	extern int sgIP_memblock_CopyBlock(sgIP_memblock * mb_src, sgIP_memblock * mb_dest, int start_src, int start_dest, int copy_length);
