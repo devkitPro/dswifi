@@ -43,6 +43,7 @@ void sgIP_free(void* ptr)
 void sgIP_IntrWaitEvent(void)
 {
 	// TODO
+	threadSleep(1000);
 }
 
 static void _wfcIPTimerTask(TickTask* t)
@@ -115,7 +116,6 @@ static int _wfcSend(sgIP_Hub_HWInterface* hw, sgIP_memblock* mb)
 	}
 	sgIP_memblock_free(mb);
 	if (pPacket) {
-		dietPrint("[WFC] tx len=%u\n", pPacket->len);
 		wlmgrRawTx(pPacket);
 	}
 	return 0;
@@ -140,12 +140,12 @@ static void _wfcStartIP(void)
 	if (slot->ipv4_addr && slot->ipv4_gateway && slot->ipv4_subnet) {
 		iface->ipaddr = slot->ipv4_addr;
 		iface->gateway = slot->ipv4_gateway;
-		iface->snmask = (1U << (32 - slot->ipv4_subnet)) - 1;
+		iface->snmask = htonl(~((1U << (32 - slot->ipv4_subnet)) - 1));
 		s_wfcState.dhcp_active = false;
 	} else {
 		iface->ipaddr = htonl((169<<24) | (254<<16) | 2);
 		iface->gateway = htonl((169<<24) | (254<<16) | 1);
-		iface->snmask = 0xffff;
+		iface->snmask = htonl((255<<24) | (255<16));
 		s_wfcState.dhcp_active = true;
 	}
 	iface->dns[0] = slot->ipv4_dns[0];
@@ -355,7 +355,6 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 
 static void _wfcRecv(void* user, NetBuf* pPacket)
 {
-	dietPrint("[WFC] rx len=%u\n", pPacket->len);
 	sgIP_memblock* mb = sgIP_memblock_alloc(2+pPacket->len);
 	if (mb) {
 		sgIP_memblock_exposeheader(mb, -2);
@@ -501,11 +500,21 @@ void wfcBeginConnect(void)
 
 WfcStatus wfcGetStatus(void)
 {
-	if (s_wfcState.is_connecting) {
-		return WfcStatus_Connecting;
-	}
+	WlMgrState state = wlmgrGetState();
 
-	return wlmgrGetState() == WlMgrState_Associated ? WfcStatus_Connected : WfcStatus_Disconnected;
+	if (s_wfcState.is_connecting) {
+		if (s_wfcState.dhcp_active) {
+			return WfcStatus_AcquiringIP;
+		} else if (state == WlMgrState_Scanning) {
+			return WfcStatus_Scanning;
+		} else {
+			return WfcStatus_Connecting;
+		}
+	} else if (state == WlMgrState_Associated) {
+		return WfcStatus_Connected;
+	} else {
+		return WfcStatus_Disconnected;
+	}
 }
 
 WfcConnSlot* wfcGetActiveSlot(void)
@@ -515,4 +524,25 @@ WfcConnSlot* wfcGetActiveSlot(void)
 	}
 
 	return &s_wfcSlots[s_wfcState.cur_slot].base;
+}
+
+struct in_addr wfcGetIPConfig(struct in_addr* pGateway, struct in_addr* pSnmask, struct in_addr* pDns1, struct in_addr* pDns2)
+{
+	if (pGateway) {
+		pGateway->s_addr = s_wfcState.iface->gateway;
+	}
+
+	if (pSnmask) {
+		pSnmask->s_addr = s_wfcState.iface->snmask;
+	}
+
+	if (pDns1) {
+		pDns1->s_addr = s_wfcState.iface->dns[0];
+	}
+
+	if (pDns2) {
+		pDns2->s_addr = s_wfcState.iface->dns[1];
+	}
+
+	return (struct in_addr){ s_wfcState.iface->ipaddr };
 }

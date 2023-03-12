@@ -31,6 +31,7 @@ target_include_directories(dswifi9 PRIVATE include)
 
 target_sources(dswifi9 PRIVATE
 	source/wfc.c
+	source/dswifi9.c
 
 	# sgIP sources
 	source/sgIP/sgIP.c

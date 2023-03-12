@@ -26,7 +26,7 @@ SOFTWARE.
 #include "sgIP_DHCP.h"
 #include "sgIP_DNS.h"
 #include <string.h>
-#include <unistd.h> // for gethostname/sethostname
+#include <unistd.h> // for gethostname/sethostname/gethostid
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -375,8 +375,8 @@ int sethostname(const char *name, size_t len)
     return 0;
 }
 
-
-
-
-
-
+long gethostid(void)
+{
+   sgIP_Hub_HWInterface* iface = sgIP_Hub_GetDefaultInterface();
+   return iface ? iface->ipaddr : -1;
+}

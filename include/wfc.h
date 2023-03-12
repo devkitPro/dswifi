@@ -6,13 +6,16 @@
 #else
 #error "Missing NDS platform lib"
 #endif
+#include <netinet/in.h>
 
 #define WFC_MAX_CONN_SLOTS 6
 
 typedef enum WfcStatus {
 	WfcStatus_Disconnected = 0,
-	WfcStatus_Connecting   = 1,
-	WfcStatus_Connected    = 2,
+	WfcStatus_Scanning     = 1,
+	WfcStatus_Connecting   = 2,
+	WfcStatus_AcquiringIP  = 3,
+	WfcStatus_Connected    = 4,
 } WfcStatus;
 
 typedef enum WfcWepMode {
@@ -77,6 +80,10 @@ typedef struct WfcConnSlotEx {
 	u16  crc16;
 } WfcConnSlotEx;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void wfcInit(void);
 
 void wfcClearConnSlots(void);
@@ -88,3 +95,8 @@ unsigned wfcGetNumSlots(void);
 void wfcBeginConnect(void);
 WfcStatus wfcGetStatus(void);
 WfcConnSlot* wfcGetActiveSlot(void);
+struct in_addr wfcGetIPConfig(struct in_addr* pGateway, struct in_addr* pSnmask, struct in_addr* pDns1, struct in_addr* pDns2);
+
+#ifdef __cplusplus
+}
+#endif
