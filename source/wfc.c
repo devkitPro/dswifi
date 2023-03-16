@@ -4,6 +4,12 @@
 #include <string.h>
 #include "sgIP/sgIP.h"
 
+//#define WFC_DEBUG
+
+#if !defined(WFC_CALICO) || !defined(WFC_DEBUG)
+#define dietPrint(...) ((void)0)
+#endif
+
 typedef enum WfcPhase {
 	WfcPhase_None    = 0,
 	WfcPhase_Scan    = 1,
@@ -42,8 +48,8 @@ void sgIP_free(void* ptr)
 
 void sgIP_IntrWaitEvent(void)
 {
-	// TODO
-	threadSleep(1000);
+	// TODO: use some kind of condvar?
+	threadIrqWait(false, IRQ_PXI_RECV | IRQ_TIMER3);
 }
 
 static void _wfcIPTimerTask(TickTask* t)
@@ -110,14 +116,23 @@ static int _wfcIPThreadMain(void* arg)
 
 static int _wfcSend(sgIP_Hub_HWInterface* hw, sgIP_memblock* mb)
 {
-	NetBuf* pPacket = netbufAlloc(8 + sizeof(NetLlcSnapHdr), mb->thislength, NetBufPool_Tx);
-	if (pPacket) {
-		memcpy(netbufGet(pPacket), mb->datastart, mb->thislength);
+	if (mb->next || mb->thislength != mb->totallength) {
+		// Shouldn't happen, but just to be sure
+		dietPrint("[WFC] Fragmented sgIP memblock\n");
+		sgIP_memblock_free(mb);
+		return 1;
 	}
+
+	NetBuf* pPacket;
+	while (!(pPacket = netbufAlloc(8 + sizeof(NetLlcSnapHdr), mb->thislength, NetBufPool_Tx))) {
+		// Try again after a little while
+		threadSleep(1000);
+	}
+
+	memcpy(netbufGet(pPacket), mb->datastart, mb->thislength);
 	sgIP_memblock_free(mb);
-	if (pPacket) {
-		wlmgrRawTx(pPacket);
-	}
+	wlmgrRawTx(pPacket);
+
 	return 0;
 }
 
@@ -359,11 +374,15 @@ static void _wfcRecv(void* user, NetBuf* pPacket)
 	if (mb) {
 		sgIP_memblock_exposeheader(mb, -2);
 		memcpy(mb->datastart, netbufGet(pPacket), pPacket->len);
+	}
+
+	netbufFree(pPacket);
+
+	if (mb) {
 		SGIP_INTR_PROTECT();
 		sgIP_Hub_ReceiveHardwarePacket(s_wfcState.iface, mb);
 		SGIP_INTR_UNPROTECT();
 	}
-	netbufFree(pPacket);
 }
 
 void wfcInit(void)
@@ -442,6 +461,7 @@ void wfcLoadFromNvram(void)
 	dietPrint("[WFC] loaded %u slots\n", s_wfcState.num_slots);
 	for (unsigned i = 0; i < s_wfcState.num_slots; i ++) {
 		WfcConnSlot* slot = &s_wfcSlots[i].base;
+		(void)slot;
 		dietPrint(" %u: ssid=%.*s\n", i, strnlen(slot->ssid, 32), slot->ssid);
 	}
 }
