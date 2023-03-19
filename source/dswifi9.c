@@ -4,7 +4,9 @@
 
 bool Wifi_InitDefault(bool useFirmwareSettings)
 {
-	wfcInit();
+	if (!wlmgrInitDefault() || !wfcInit()) {
+		return false;
+	}
 
 	if (useFirmwareSettings) {
 		Wifi_AutoConnect();

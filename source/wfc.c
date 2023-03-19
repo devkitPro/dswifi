@@ -385,14 +385,27 @@ static void _wfcRecv(void* user, NetBuf* pPacket)
 	}
 }
 
-void wfcInit(void)
+bool wfcInit(void)
 {
+	static bool initted = false;
+	if (initted) {
+		return true;
+	}
+
+	// Fail if WlMgr hasn't been previously initialized (this doesn't actually initialize it)
+	if (!wlmgrInit(NULL, WLMGR_DEFAULT_THREAD_PRIO)) {
+		return false;
+	}
+
 	sgIP_Init();
 	s_wfcState.iface = sgIP_Hub_AddHardwareInterface(_wfcSend, NULL);
 	s_wfcState.iface->flags &= ~SGIP_FLAG_HWINTERFACE_ENABLED;
 
 	wlmgrSetEventHandler(_wfcOnEvent, NULL);
 	wlmgrSetRawRxHandler(_wfcRecv, NULL);
+
+	initted = true;
+	return true;
 }
 
 void wfcClearConnSlots(void)

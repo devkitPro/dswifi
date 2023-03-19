@@ -84,7 +84,7 @@ typedef struct WfcConnSlotEx {
 extern "C" {
 #endif
 
-void wfcInit(void);
+bool wfcInit(void);
 
 void wfcClearConnSlots(void);
 void wfcLoadFromNvram(void);
