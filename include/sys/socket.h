@@ -69,6 +69,11 @@ struct sockaddr {
 	char        sa_data[];
 };
 
+struct __attribute__((aligned(4))) sockaddr_storage {
+	sa_family_t ss_family;
+	char        ss_data[16 - sizeof(sa_family_t)];
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
