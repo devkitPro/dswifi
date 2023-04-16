@@ -27,9 +27,7 @@ SOFTWARE.
 
 unsigned long volatile sgIP_timems;
 
-#ifdef SGIP_USES_CALICO
 RMutex sgIP_mutex;
-#endif
 
 // sgIP_Init(): Initializes sgIP hub and sets up a default surrounding interface (ARP and IP)
 void sgIP_Init() {

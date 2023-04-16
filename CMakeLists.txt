@@ -10,10 +10,6 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 	set(CMAKE_INSTALL_PREFIX "${NDS_ROOT}" CACHE PATH "" FORCE)
 endif()
 
-if("${DKP_NDS_PLATFORM_LIBRARY}" STREQUAL "calico")
-	set(CALICO TRUE)
-endif()
-
 # Define static library target
 add_library(dswifi9 STATIC)
 
@@ -21,10 +17,6 @@ add_library(dswifi9 STATIC)
 target_compile_options(dswifi9 PRIVATE
 	-Wall -Werror
 )
-
-if(CALICO)
-	target_compile_definitions(dswifi9 PRIVATE WFC_CALICO)
-endif()
 
 # Add include directories
 target_include_directories(dswifi9 PRIVATE include)

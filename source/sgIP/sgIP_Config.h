@@ -208,13 +208,6 @@ extern "C" {
 #define SGIP_WAITEVENT() \
 	sgIP_IntrWaitEvent()
 
-#if __has_include(<calico.h>)
-#define SGIP_USES_CALICO
-#elif !__has_include(<nds.h>)
-#error "Missing NDS platform lib"
-#endif
-
-#ifdef SGIP_USES_CALICO
 #include <calico/system/mutex.h>
 
 extern RMutex sgIP_mutex;
@@ -227,21 +220,6 @@ extern RMutex sgIP_mutex;
 
 #define SGIP_INTR_UNPROTECT() \
 	rmutexUnlock(&sgIP_mutex)
-
-#else
-#include <nds/interrupts.h>
-
-#define SGIP_INTR_PROTECT() \
-	int tIME; \
-	tIME=enterCriticalSection()
-
-#define SGIP_INTR_REPROTECT() \
-	tIME=enterCriticalSection()
-
-#define SGIP_INTR_UNPROTECT() \
-	leaveCriticalSection(tIME)
-
-#endif
 
 #ifdef SGIP_DEBUG
 #ifdef __cplusplus

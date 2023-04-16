@@ -6,7 +6,7 @@
 
 //#define WFC_DEBUG
 
-#if !defined(WFC_CALICO) || !defined(WFC_DEBUG)
+#if !defined(WFC_DEBUG)
 #define dietPrint(...) ((void)0)
 #endif
 

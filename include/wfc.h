@@ -1,11 +1,5 @@
 #pragma once
-#if __has_include(<calico.h>)
 #include <calico.h>
-#elif __has_include(<nds.h>)
-#include <nds.h>
-#else
-#error "Missing NDS platform lib"
-#endif
 #include <netinet/in.h>
 
 #define WFC_MAX_CONN_SLOTS 6
