@@ -35,6 +35,8 @@ static struct {
 	Mailbox ip_mbox;
 } s_wfcState;
 
+// TODO: Replace with custom heap
+
 void* sgIP_malloc(int size)
 {
 	size = (size+1)&~1;
@@ -169,6 +171,7 @@ static void _wfcStartIP(void)
 
 	// Start sgIP thread
 	threadPrepare(&s_wfcIPThread, _wfcIPThreadMain, NULL, &s_wfcIPThreadStack[sizeof(s_wfcIPThreadStack)], threadGetSelf()->baseprio);
+	threadAttachLocalStorage(&s_wfcIPThread, NULL);
 	threadStart(&s_wfcIPThread);
 
 	SGIP_INTR_PROTECT();
