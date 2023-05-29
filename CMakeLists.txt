@@ -52,3 +52,9 @@ install(
 	FILES_MATCHING
 		PATTERN "*.h"
 )
+
+# Install the license
+install(
+	FILES dswifi_license.txt
+	DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
