@@ -126,7 +126,8 @@ static int _wfcSend(sgIP_Hub_HWInterface* hw, sgIP_memblock* mb)
 	}
 
 	NetBuf* pPacket;
-	while (!(pPacket = netbufAlloc(8 + sizeof(NetLlcSnapHdr), mb->thislength, NetBufPool_Tx))) {
+	unsigned headroom = g_envExtraInfo->wlmgr_hdr_headroom_sz;
+	while (!(pPacket = netbufAlloc(headroom, mb->thislength, NetBufPool_Tx))) {
 		// Try again after a little while
 		threadSleep(1000);
 	}
