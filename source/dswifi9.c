@@ -36,7 +36,7 @@ int Wifi_AssocStatus(void)
 
 int Wifi_DisconnectAP(void)
 {
-	wlmgrDeassociate();
+	wlmgrDisassociate();
 	return 0;
 }
 

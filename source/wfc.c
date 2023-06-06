@@ -102,7 +102,7 @@ static int _wfcIPThreadMain(void* arg)
 				case SGIP_DHCP_STATUS_IDLE:
 				case SGIP_DHCP_STATUS_FAILED: {
 					dietPrint("[IPThr] DHCP fail, giving up\n");
-					wlmgrDeassociate();
+					wlmgrDisassociate();
 					break;
 				}
 			}
@@ -269,7 +269,7 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 		}
 
 		case WlMgrEvent_Disconnected: {
-			dietPrint("[WFC] deassoc reason %u\n", arg0);
+			dietPrint("[WFC] disassoc reason %u\n", arg0);
 			break;
 		}
 	}
