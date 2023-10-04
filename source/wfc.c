@@ -433,7 +433,7 @@ void wfcLoadFromNvram(void)
 				continue;
 			}
 
-			if (!slot->base.config) {
+			if (slot->base.conn_type == WfcConnType_Invalid) {
 				continue;
 			}
 
@@ -461,7 +461,7 @@ void wfcLoadFromNvram(void)
 			continue;
 		}
 
-		if (!slot->config) {
+		if (slot->conn_type == WfcConnType_Invalid) {
 			continue;
 		}
 
