@@ -615,6 +615,18 @@ WlanBssDesc* wfcGetScanBssList(unsigned* out_count)
 	return s_wfcBssDesc;
 }
 
+void _wpaDerivePmk(void* out, const void* ssid, unsigned ssid_len, const void* key, unsigned key_len);
+
+bool wfcDeriveWpaKey(WlanAuthData* out, const char* ssid, unsigned ssid_len, const char* key, unsigned key_len)
+{
+	if (!systemIsTwlMode()) {
+		return false;
+	}
+
+	_wpaDerivePmk(out->wpa_psk, ssid, ssid_len, key, key_len);
+	return true;
+}
+
 bool wfcBeginAutoConnect(void)
 {
 	WlMgrState state = wlmgrGetState();
