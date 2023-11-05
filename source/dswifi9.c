@@ -24,9 +24,8 @@ bool Wifi_InitDefault(bool useFirmwareSettings)
 
 void Wifi_AutoConnect(void)
 {
-	wfcClearConnSlots();
 	wfcLoadFromNvram();
-	wfcBeginConnect();
+	wfcBeginAutoConnect();
 }
 
 int Wifi_AssocStatus(void)

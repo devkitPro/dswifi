@@ -86,7 +86,11 @@ bool wfcLoadSlot(const WfcConnSlot* slot);
 bool wfcLoadSlotEx(const WfcConnSlotEx* slot);
 unsigned wfcGetNumSlots(void);
 
-void wfcBeginConnect(void);
+bool wfcBeginScan(WlanBssScanFilter const* filter);
+WlanBssDesc* wfcGetScanBssList(unsigned* out_count);
+
+bool wfcBeginAutoConnect(void);
+bool wfcBeginConnect(WlanBssDesc const* bss, WlanAuthData const* auth);
 WfcStatus wfcGetStatus(void);
 WfcConnSlot* wfcGetActiveSlot(void);
 struct in_addr wfcGetIPConfig(struct in_addr* pGateway, struct in_addr* pSnmask, struct in_addr* pDns1, struct in_addr* pDns2);

@@ -10,6 +10,12 @@
 #define dietPrint(...) ((void)0)
 #endif
 
+typedef enum WfcProc {
+	WfcProc_None    = 0,
+	WfcProc_Scan    = 1,
+	WfcProc_Connect = 2,
+} WfcProc;
+
 typedef enum WfcPhase {
 	WfcPhase_None    = 0,
 	WfcPhase_Scan    = 1,
@@ -29,8 +35,19 @@ static struct {
 	u8 num_slots;
 	u8 cur_bss;
 	u8 num_bss;
-	bool is_connecting;
+	WfcProc cur_process;
 	bool dhcp_active;
+
+	union {
+		struct {
+			WlanBssScanFilter const* filter;
+		} scan;
+
+		struct {
+			WlanBssDesc const* bss;
+			WlanAuthData const* auth;
+		} connect;
+	};
 
 	Mailbox ip_mbox;
 } s_wfcState;
@@ -94,7 +111,7 @@ static int _wfcIPThreadMain(void* arg)
 					dietPrint("[IPThr] DHCP ok, connected!\n");
 					sgIP_ARP_SendGratARP(s_wfcState.iface);
 					s_wfcState.dhcp_active = false;
-					s_wfcState.is_connecting = false;
+					s_wfcState.cur_process = WfcProc_None;
 					break;
 				}
 
@@ -154,8 +171,8 @@ static void _wfcStartIP(void)
 		iface->hwaddr[0], iface->hwaddr[1], iface->hwaddr[2], iface->hwaddr[3], iface->hwaddr[4], iface->hwaddr[5]);
 
 	// Copy WFC config
-	WfcConnSlot* slot = &s_wfcSlots[s_wfcState.cur_slot].base;
-	if (slot->ipv4_addr && slot->ipv4_gateway && slot->ipv4_subnet) {
+	WfcConnSlot* slot = s_wfcState.cur_slot < WFC_MAX_CONN_SLOTS ? &s_wfcSlots[s_wfcState.cur_slot].base : NULL;
+	if (slot && slot->ipv4_addr && slot->ipv4_gateway && slot->ipv4_subnet) {
 		iface->ipaddr = slot->ipv4_addr;
 		iface->gateway = slot->ipv4_gateway;
 		iface->snmask = htonl(~((1U << (32 - slot->ipv4_subnet)) - 1));
@@ -166,8 +183,8 @@ static void _wfcStartIP(void)
 		iface->snmask = htonl((255<<24) | (255<16));
 		s_wfcState.dhcp_active = true;
 	}
-	iface->dns[0] = slot->ipv4_dns[0];
-	iface->dns[1] = slot->ipv4_dns[1];
+	iface->dns[0] = slot ? slot->ipv4_dns[0] : 0;
+	iface->dns[1] = slot ? slot->ipv4_dns[1] : 0;
 	iface->flags |= SGIP_FLAG_HWINTERFACE_ENABLED;
 
 	// Start sgIP thread
@@ -221,35 +238,75 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 			WlMgrState old_state = (WlMgrState)arg1;
 			WlMgrState new_state = (WlMgrState)arg0;
 
-			if (old_state >= WlMgrState_Associated) {
+			if (old_state == WlMgrState_Associated) {
 				dietPrint("[WFC] kicked out\n");
 				_wfcStopIP();
 			}
 
 			if (old_state >= WlMgrState_Idle && new_state <= WlMgrState_Stopping) {
 				dietPrint("[WFC] stopping\n");
-				s_wfcState.is_connecting = false;
+				s_wfcState.cur_process = WfcProc_None;
 			}
 
-			if (!s_wfcState.is_connecting) {
-				break;
-			}
+			switch (s_wfcState.cur_process) {
+				default: break;
 
-			if (old_state == WlMgrState_Starting && new_state == WlMgrState_Idle) {
-				s_wfcState.cur_slot = 0;
-				phase = WfcPhase_Scan;
-			} else if (old_state == WlMgrState_Scanning && new_state == WlMgrState_Idle) {
-				if (s_wfcState.num_bss) {
-					phase = WfcPhase_Connect;
-				} else {
-					s_wfcState.cur_slot ++;
-					phase = WfcPhase_Scan;
+				case WfcProc_Scan: {
+					if (new_state == WlMgrState_Idle) {
+						if (old_state <= WlMgrState_Idle) {
+							phase = WfcPhase_Scan;
+						} else {
+							s_wfcState.cur_process = WfcProc_None;
+						}
+					}
+
+					break;
 				}
-			} else if (old_state >= WlMgrState_Associating && new_state == WlMgrState_Idle) {
-				s_wfcState.cur_bss ++;
-				phase = WfcPhase_Connect;
-			} else if (new_state == WlMgrState_Associated) {
-				phase = WfcPhase_SetupIP;
+
+				case WfcProc_Connect: {
+					bool next_slot = false;
+					if (new_state == WlMgrState_Idle) {
+						if (s_wfcState.cur_slot >= WFC_MAX_CONN_SLOTS) {
+							if (old_state <= WlMgrState_Idle) {
+								phase = WfcPhase_Connect;
+							} else {
+								s_wfcState.cur_process = WfcProc_None;
+							}
+						} else if (old_state <= WlMgrState_Idle) {
+							phase = WfcPhase_Scan;
+						} else if (old_state == WlMgrState_Scanning) {
+							if (s_wfcState.num_bss) {
+								phase = WfcPhase_Connect;
+							} else {
+								next_slot = true;
+							}
+						} else if (old_state == WlMgrState_Associating) {
+							s_wfcState.cur_bss ++;
+							if (s_wfcState.cur_bss < s_wfcState.num_bss) {
+								phase = WfcPhase_Connect;
+							} else {
+								next_slot = true;
+							}
+						} else if (old_state >= WlMgrState_Associated) {
+							next_slot = true;
+						}
+					} else if (new_state == WlMgrState_Associated) {
+						phase = WfcPhase_SetupIP;
+					}
+
+					if (next_slot) {
+						s_wfcState.cur_slot ++;
+						if (s_wfcState.cur_slot < s_wfcState.num_slots) {
+							dietPrint("[WFC] trying next slot\n");
+							phase = WfcPhase_Scan;
+						} else {
+							dietPrint("[WFC] no more slots - FAIL\n");
+							s_wfcState.cur_process = WfcProc_None;
+						}
+					}
+
+					break;
+				}
 			}
 
 			break;
@@ -257,7 +314,7 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 
 		case WlMgrEvent_CmdFailed: {
 			dietPrint("[WFC] cmd%u fail\n", arg0);
-			s_wfcState.is_connecting = false;
+			s_wfcState.cur_process = WfcProc_None;
 			break;
 		}
 
@@ -274,102 +331,94 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 		}
 	}
 
-	bool retry;
-	do {
-		retry = false;
-		switch (phase) {
-			default:
-			case WfcPhase_None: break;
+	switch (phase) {
+		default:
+		case WfcPhase_None: break;
 
-			case WfcPhase_Scan: {
-				if (s_wfcState.cur_slot >= s_wfcState.num_slots) {
-					dietPrint("[WFC] No more slots - FAIL\n");
-					s_wfcState.is_connecting = false;
-					break;
-				}
-
-				// Retrieve slot
-				WfcConnSlotEx* slot = &s_wfcSlots[s_wfcState.cur_slot];
-				unsigned ssidlen = strnlen(slot->base.ssid, 32);
-				dietPrint("[WFC] searching %.*s\n", ssidlen, slot->base.ssid);
-
-				// Attempt to find BSSs for the current slot
-				WlanBssScanFilter filter = {
-					.channel_mask = UINT32_MAX,
-					.target_bssid = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-				};
-
-				filter.target_ssid_len = ssidlen;
-				memcpy(filter.target_ssid, slot->base.ssid, ssidlen);
-				wlmgrStartScan(s_wfcBssDesc, &filter);
+		case WfcPhase_Scan: {
+			if (s_wfcState.cur_process == WfcProc_Scan) {
+				wlmgrStartScan(s_wfcBssDesc, s_wfcState.scan.filter);
 				break;
 			}
 
-			case WfcPhase_Connect: {
-				if (s_wfcState.cur_bss >= s_wfcState.num_bss) {
-					dietPrint("[WFC] trying next slot\n");
-					s_wfcState.cur_slot++;
-					phase = WfcPhase_Scan;
-					retry = true;
-					break;
-				}
+			// Retrieve slot
+			WfcConnSlotEx* slot = &s_wfcSlots[s_wfcState.cur_slot];
+			unsigned ssidlen = strnlen(slot->base.ssid, WLAN_MAX_SSID_LEN);
+			dietPrint("[WFC] searching %.*s\n", ssidlen, slot->base.ssid);
 
-				WfcConnSlotEx* slot = &s_wfcSlots[s_wfcState.cur_slot];
-				WlanBssDesc* bss = &s_wfcBssDesc[s_wfcState.cur_bss];
+			// Attempt to find BSSs for the current slot
+			WlanBssScanFilter filter = {
+				.channel_mask = UINT32_MAX,
+				.target_bssid = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
+			};
 
-				dietPrint("[WFC] BSS %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
-					bss->bssid[0], bss->bssid[1], bss->bssid[2], bss->bssid[3], bss->bssid[4], bss->bssid[5]);
-				dietPrint("  %.*s\n", bss->ssid_len, bss->ssid);
-
-				WlanAuthData auth = {};
-				switch (slot->base.conn_type) {
-					default:
-					case WfcConnType_WepNormal: {
-						switch (slot->base.wep_mode) {
-							default:
-							case WfcWepMode_Open:
-								bss->auth_type = WlanBssAuthType_Open;
-								break;
-							case WfcWepMode_40bit:
-								bss->auth_type = WlanBssAuthType_WEP_40;
-								memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_40_LEN);
-								break;
-							case WfcWepMode_104bit:
-								bss->auth_type = WlanBssAuthType_WEP_104;
-								memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_104_LEN);
-								break;
-							case WfcWepMode_128bit:
-								bss->auth_type = WlanBssAuthType_WEP_128;
-								memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_128_LEN);
-								break;
-						}
-						break;
-					}
-
-					case WfcConnType_WpaNormal: {
-						bss->auth_type = (WlanBssAuthType)slot->wpa_mode;
-						memcpy(auth.wpa_psk, slot->wpa_pmk, WLAN_WPA_PSK_LEN);
-						break;
-					}
-				}
-
-				wlmgrAssociate(bss, &auth);
-				break;
-			}
-
-			case WfcPhase_SetupIP: {
-				_wfcStartIP();
-
-				if (s_wfcState.dhcp_active) {
-					dietPrint("[WFC] dhcp started\n");
-				} else {
-					s_wfcState.is_connecting = false;
-					dietPrint("[WFC] connected!\n");
-				}
-				break;
-			}
+			filter.target_ssid_len = ssidlen;
+			memcpy(filter.target_ssid, slot->base.ssid, ssidlen);
+			wlmgrStartScan(s_wfcBssDesc, &filter);
+			break;
 		}
-	} while (retry);
+
+		case WfcPhase_Connect: {
+			if (s_wfcState.cur_slot >= WFC_MAX_CONN_SLOTS) {
+				wlmgrAssociate(s_wfcState.connect.bss, s_wfcState.connect.auth);
+				break;
+			}
+
+			WfcConnSlotEx* slot = &s_wfcSlots[s_wfcState.cur_slot];
+			WlanBssDesc* bss = &s_wfcBssDesc[s_wfcState.cur_bss];
+
+			dietPrint("[WFC] BSS %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
+				bss->bssid[0], bss->bssid[1], bss->bssid[2], bss->bssid[3], bss->bssid[4], bss->bssid[5]);
+			dietPrint("  %.*s\n", bss->ssid_len, bss->ssid);
+
+			WlanAuthData auth = {};
+			switch (slot->base.conn_type) {
+				default:
+				case WfcConnType_WepNormal: {
+					switch (slot->base.wep_mode) {
+						default:
+						case WfcWepMode_Open:
+							bss->auth_type = WlanBssAuthType_Open;
+							break;
+						case WfcWepMode_40bit:
+							bss->auth_type = WlanBssAuthType_WEP_40;
+							memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_40_LEN);
+							break;
+						case WfcWepMode_104bit:
+							bss->auth_type = WlanBssAuthType_WEP_104;
+							memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_104_LEN);
+							break;
+						case WfcWepMode_128bit:
+							bss->auth_type = WlanBssAuthType_WEP_128;
+							memcpy(auth.wep_key, slot->base.wep_keys[0], WLAN_WEP_128_LEN);
+							break;
+					}
+					break;
+				}
+
+				case WfcConnType_WpaNormal: {
+					bss->auth_type = (WlanBssAuthType)slot->wpa_mode;
+					memcpy(auth.wpa_psk, slot->wpa_pmk, WLAN_WPA_PSK_LEN);
+					break;
+				}
+			}
+
+			wlmgrAssociate(bss, &auth);
+			break;
+		}
+
+		case WfcPhase_SetupIP: {
+			_wfcStartIP();
+
+			if (s_wfcState.dhcp_active) {
+				dietPrint("[WFC] dhcp started\n");
+			} else {
+				s_wfcState.cur_process = WfcProc_None;
+				dietPrint("[WFC] connected!\n");
+			}
+			break;
+		}
+	}
 }
 
 static void _wfcRecv(void* user, NetBuf* pPacket)
@@ -489,6 +538,10 @@ bool wfcLoadSlot(const WfcConnSlot* slot)
 		return false;
 	}
 
+	if (s_wfcState.num_slots >= WFC_MAX_CONN_SLOTS) {
+		return false;
+	}
+
 	WfcConnSlot* out = &s_wfcSlots[s_wfcState.num_slots++].base;
 	if (slot != out) {
 		memcpy(out, slot, sizeof(*out));
@@ -500,6 +553,10 @@ bool wfcLoadSlot(const WfcConnSlot* slot)
 bool wfcLoadSlotEx(const WfcConnSlotEx* slot)
 {
 	if (slot->base.conn_type != WfcConnType_WepNormal && slot->base.conn_type != WfcConnType_WpaNormal) {
+		return false;
+	}
+
+	if (s_wfcState.num_slots >= WFC_MAX_CONN_SLOTS) {
 		return false;
 	}
 
@@ -516,37 +573,80 @@ unsigned wfcGetNumSlots(void)
 	return s_wfcState.num_slots;
 }
 
-void wfcBeginConnect(void)
+static bool _wfcCanStartProcess(WlMgrState state)
 {
-	if (s_wfcState.is_connecting || s_wfcState.num_slots == 0) {
-		return;
+	return s_wfcState.cur_process == WfcProc_None && (state == WlMgrState_Stopped || state == WlMgrState_Idle);
+}
+
+static bool _wfcStartProcess(WlMgrState state, WfcProc proc)
+{
+	s_wfcState.cur_process = proc;
+
+	if (state == WlMgrState_Stopped) {
+		wlmgrStart(WlMgrMode_Infrastructure);
+	} else {
+		_wfcOnEvent(NULL, WlMgrEvent_NewState, WlMgrState_Idle, WlMgrState_Idle);
 	}
 
-	switch (wlmgrGetState()) {
-		default: break;
-		case WlMgrState_Stopped:
-			s_wfcState.is_connecting = true;
-			wlmgrStart(WlMgrMode_Infrastructure);
-			break;
-		case WlMgrState_Idle:
-			s_wfcState.is_connecting = true;
-			_wfcOnEvent(NULL, WlMgrEvent_NewState, WlMgrState_Idle, WlMgrState_Starting);
-			break;
+	return true;
+}
+
+bool wfcBeginScan(WlanBssScanFilter const* filter)
+{
+	WlMgrState state = wlmgrGetState();
+	if (!_wfcCanStartProcess(state)) {
+		return false;
 	}
+
+	s_wfcState.cur_bss = 0;
+	s_wfcState.num_bss = 0;
+	s_wfcState.scan.filter = filter;
+	return _wfcStartProcess(state, WfcProc_Scan);
+}
+
+WlanBssDesc* wfcGetScanBssList(unsigned* out_count)
+{
+	if (s_wfcState.cur_process != WfcProc_None) {
+		if (out_count) *out_count = 0;
+		return NULL;
+	}
+
+	if (out_count) *out_count = s_wfcState.num_bss;
+	return s_wfcBssDesc;
+}
+
+bool wfcBeginAutoConnect(void)
+{
+	WlMgrState state = wlmgrGetState();
+	if (!_wfcCanStartProcess(state) || s_wfcState.num_slots == 0) {
+		return false;
+	}
+
+	s_wfcState.cur_slot = 0;
+	return _wfcStartProcess(state, WfcProc_Connect);
+}
+
+bool wfcBeginConnect(WlanBssDesc const* bss, WlanAuthData const* auth)
+{
+	WlMgrState state = wlmgrGetState();
+	if (!_wfcCanStartProcess(state)) {
+		return false;
+	}
+
+	s_wfcState.cur_slot = WFC_MAX_CONN_SLOTS;
+	s_wfcState.connect.bss = bss;
+	s_wfcState.connect.auth = auth;
+	return _wfcStartProcess(state, WfcProc_Connect);
 }
 
 WfcStatus wfcGetStatus(void)
 {
 	WlMgrState state = wlmgrGetState();
 
-	if (s_wfcState.is_connecting) {
-		if (s_wfcState.dhcp_active) {
-			return WfcStatus_AcquiringIP;
-		} else if (state == WlMgrState_Scanning) {
-			return WfcStatus_Scanning;
-		} else {
-			return WfcStatus_Connecting;
-		}
+	if (state == WlMgrState_Scanning || s_wfcState.cur_process == WfcProc_Scan) {
+		return WfcStatus_Scanning;
+	} else if (s_wfcState.cur_process == WfcProc_Connect) {
+		return s_wfcState.dhcp_active ? WfcStatus_AcquiringIP : WfcStatus_Connecting;
 	} else if (state == WlMgrState_Associated) {
 		return WfcStatus_Connected;
 	} else {
@@ -556,7 +656,7 @@ WfcStatus wfcGetStatus(void)
 
 WfcConnSlot* wfcGetActiveSlot(void)
 {
-	if (wlmgrGetState() != WlMgrState_Associated || s_wfcState.is_connecting) {
+	if (s_wfcState.cur_process != WfcProc_None || wlmgrGetState() != WlMgrState_Associated || s_wfcState.cur_slot >= s_wfcState.num_slots) {
 		return NULL;
 	}
 
