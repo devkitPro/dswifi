@@ -178,7 +178,7 @@ static void _wfcStartIP(void)
 		iface->snmask = htonl(~((1U << (32 - slot->ipv4_subnet)) - 1));
 		s_wfcState.dhcp_active = false;
 	} else {
-		iface->ipaddr = htonl((169<<24) | (254<<16) | 2);
+		iface->ipaddr = 0;
 		iface->gateway = htonl((169<<24) | (254<<16) | 1);
 		iface->snmask = htonl((255<<24) | (255<16));
 		s_wfcState.dhcp_active = true;
