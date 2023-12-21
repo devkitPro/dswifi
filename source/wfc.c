@@ -144,9 +144,15 @@ static int _wfcSend(sgIP_Hub_HWInterface* hw, sgIP_memblock* mb)
 
 	NetBuf* pPacket;
 	unsigned headroom = g_envExtraInfo->wlmgr_hdr_headroom_sz;
-	while (!(pPacket = netbufAlloc(headroom, mb->thislength, NetBufPool_Tx))) {
-		// Try again after a little while
-		threadSleep(1000);
+	if (!(pPacket = netbufAlloc(headroom, mb->thislength, NetBufPool_Tx))) {
+		// Drop the packet if we cannot allocate a TX netbuf.
+		// This is done in order to break a deadlock between the ARM9 and ARM7
+		// where the 9 is waiting for the 7 to release TX mem, but the 7 is
+		// waiting for the 9 to release RX mem. In other words, we prioritize
+		// receiving packets to sending packets.
+		dietPrint("[WFC] Out of netbuf TX mem\n");
+		sgIP_memblock_free(mb);
+		return 1;
 	}
 
 	memcpy(netbufGet(pPacket), mb->datastart, mb->thislength);
