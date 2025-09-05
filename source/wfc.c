@@ -402,7 +402,8 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 					break;
 				}
 
-				case WfcConnType_WpaNormal: {
+				case WfcConnType_WpaNormal:
+				case WfcConnType_WpaWps: {
 					bss->auth_type = (WlanBssAuthType)slot->wpa_mode;
 					memcpy(auth.wpa_psk, slot->wpa_pmk, WLAN_WPA_PSK_LEN);
 					break;
@@ -558,7 +559,7 @@ bool wfcLoadSlot(const WfcConnSlot* slot)
 
 bool wfcLoadSlotEx(const WfcConnSlotEx* slot)
 {
-	if (slot->base.conn_type != WfcConnType_WepNormal && slot->base.conn_type != WfcConnType_WpaNormal) {
+	if (slot->base.conn_type != WfcConnType_WepNormal && slot->base.conn_type != WfcConnType_WpaNormal && slot->base.conn_type != WfcConnType_WpaWps) {
 		return false;
 	}
 
