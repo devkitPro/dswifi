@@ -377,7 +377,7 @@ static void _wfcOnEvent(void* user, WlMgrEvent event, uptr arg0, uptr arg1)
 				bss->bssid[0], bss->bssid[1], bss->bssid[2], bss->bssid[3], bss->bssid[4], bss->bssid[5]);
 			dietPrint("  %.*s\n", bss->ssid_len, bss->ssid);
 
-			WlanAuthData auth = {};
+			static WlanAuthData auth = {};
 			switch (slot->base.conn_type) {
 				default:
 				case WfcConnType_WepNormal: {
