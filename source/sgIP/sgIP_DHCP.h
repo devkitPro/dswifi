@@ -48,7 +48,7 @@ typedef struct SGIP_DHCP_PACKET { // yes, freaking big endian prevails here too.
    unsigned char chaddr[16];  // client hardware address
    char sname[64];         // optional server hostname (null terminated string)
    char file[128];         // boot file name, null terminated string
-   char options[312];      // optional parameters
+   unsigned char options[312];      // optional parameters
 } sgIP_DHCP_Packet;
 
 enum SGIP_DHCP_STATUS {

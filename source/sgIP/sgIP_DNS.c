@@ -354,6 +354,7 @@ dns_listenonly:
 
          do {
             socklen_t sainlen;
+            sainlen=sizeof(sain);
             i=recvfrom(dns_sock,responsedata,512,0,(struct sockaddr *)&sain,&sainlen);
             if(i!=-1) break;
             dtime=sgIP_timems-query_time_start;

@@ -397,6 +397,7 @@ int ioctl(int socket, int cmd, ...) {
 				retval=SGIP_ERROR(EINVAL);
 			}
 		}
+		break;
     default:
         retval = SGIP_ERROR(EINVAL);
 	}
