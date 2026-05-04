@@ -195,7 +195,7 @@ void sgIP_DHCP_Release() { // call to dump our DHCP address and leave.
 }
 int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call until it returns SGIP_DHCP_STATUS_SUCCESS or _FAILED.
 	sgIP_DHCP_Packet * p;
-	struct sockaddr_in * sain;
+	struct sockaddr_in sain;
 	int i,j,n,l;
 	if(dhcp_status!=SGIP_DHCP_STATUS_WORKING) return dhcp_status;
 	int send = 0;
@@ -205,7 +205,10 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 
 		while(1) {
          socklen_t sainlen;
-			l=recvfrom(dhcp_socket,p,sizeof(sgIP_DHCP_Packet),0,(struct sockaddr *)&sain,&sainlen);
+			sainlen=sizeof(sain);
+			l=recvfrom(dhcp_socket,p,sizeof(sgIP_DHCP_Packet),0,
+			           (struct sockaddr *)&sain,
+			           &sainlen);
 			if(l==-1) break;
 			if(p->op!=2 || p->htype!=1 || p->hlen!=6 || p->xid!=dhcp_tid ) continue;
 			// check magic cookie

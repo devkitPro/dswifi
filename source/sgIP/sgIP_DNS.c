@@ -284,15 +284,15 @@ int sgIP_DNS_genquery(const char * name) {
 }
 
 void sgIP_DNS_CopyAliasAt(char * deststr,int offset) {
-   char * c;
+   unsigned char * c;
    int i,j;
    i=0;
-   c=(char *)responsedata+offset;
+   c=responsedata+offset;
    do {
       j=c[0];
       if(j>63) {
          j=((j&63)<<8) | c[1];
-         c=(char *)responsedata+j;
+         c=responsedata+j;
          continue;
       }
       if(!j) break;
@@ -354,6 +354,7 @@ dns_listenonly:
 
          do {
             socklen_t sainlen;
+            sainlen=sizeof(sain);
             i=recvfrom(dns_sock,responsedata,512,0,(struct sockaddr *)&sain,&sainlen);
             if(i!=-1) break;
             dtime=sgIP_timems-query_time_start;
