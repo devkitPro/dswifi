@@ -91,6 +91,9 @@ WlanBssDesc* wfcGetScanBssList(unsigned* out_count);
 
 bool wfcDeriveWpaKey(WlanAuthData* out, const char* ssid, unsigned ssid_len, const char* key, unsigned key_len);
 
+bool wfcSetStaticIP(uint32_t addr, uint32_t gateway, u32 prefix, uint32_t dns1, uint32_t dns2);
+void wfcClearStaticIP(void);
+
 bool wfcBeginAutoConnect(void);
 bool wfcBeginConnect(WlanBssDesc const* bss, WlanAuthData const* auth);
 WfcStatus wfcGetStatus(void);

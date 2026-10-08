@@ -10,6 +10,14 @@
 #define dietPrint(...) ((void)0)
 #endif
 
+static struct {
+	bool enabled;
+	u32 prefix;
+	u32 addr;
+	u32 gateway;
+	u32 dns[2];
+} s_wfcStaticIP;
+
 typedef enum WfcProc {
 	WfcProc_None    = 0,
 	WfcProc_Scan    = 1,
@@ -162,6 +170,26 @@ static int _wfcSend(sgIP_Hub_HWInterface* hw, sgIP_memblock* mb)
 	return 0;
 }
 
+bool wfcSetStaticIP(uint32_t addr, uint32_t gateway, u32 prefix, uint32_t dns1, uint32_t dns2)
+{
+	if (!prefix || !addr || !gateway) {
+		return false;
+	}
+
+	s_wfcStaticIP.addr = addr;
+	s_wfcStaticIP.gateway = gateway;
+	s_wfcStaticIP.prefix = prefix;
+	s_wfcStaticIP.dns[0] = dns1;
+	s_wfcStaticIP.dns[1] = dns2;
+	s_wfcStaticIP.enabled = true;
+	return true;
+}
+
+void wfcClearStaticIP(void)
+{
+	s_wfcStaticIP.enabled = false;
+}
+
 static void _wfcStartIP(void)
 {
 	sgIP_Hub_HWInterface* iface = s_wfcState.iface;
@@ -176,21 +204,37 @@ static void _wfcStartIP(void)
 	dietPrint("[IP] MAC = %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
 		iface->hwaddr[0], iface->hwaddr[1], iface->hwaddr[2], iface->hwaddr[3], iface->hwaddr[4], iface->hwaddr[5]);
 
-	// Copy WFC config
-	WfcConnSlot* slot = s_wfcState.cur_slot < WFC_MAX_CONN_SLOTS ? &s_wfcSlots[s_wfcState.cur_slot].base : NULL;
-	if (slot && slot->ipv4_addr && slot->ipv4_gateway && slot->ipv4_subnet) {
-		iface->ipaddr = slot->ipv4_addr;
-		iface->gateway = slot->ipv4_gateway;
-		iface->snmask = htonl(~((1U << (32 - slot->ipv4_subnet)) - 1));
+	// Pick IP config: manual static > slot static > DHCP
+
+	// Try manual static
+	if (s_wfcStaticIP.enabled) {
+		iface->ipaddr = s_wfcStaticIP.addr;
+		iface->gateway = s_wfcStaticIP.gateway;
+		iface->snmask = s_wfcStaticIP.prefix;
+		iface->dns[0] = s_wfcStaticIP.dns[0];
+		iface->dns[1] = s_wfcStaticIP.dns[1];
 		s_wfcState.dhcp_active = false;
 	} else {
-		iface->ipaddr = 0;
-		iface->gateway = htonl((169<<24) | (254<<16) | 1);
-		iface->snmask = htonl((255<<24) | (255<16));
-		s_wfcState.dhcp_active = true;
+
+		// Try saved slot
+		WfcConnSlot* slot = s_wfcState.cur_slot < WFC_MAX_CONN_SLOTS ? &s_wfcSlots[s_wfcState.cur_slot].base : NULL;
+		if (slot && slot->ipv4_addr && slot->ipv4_gateway && slot->ipv4_subnet) {
+			iface->ipaddr = slot->ipv4_addr;
+			iface->gateway = slot->ipv4_gateway;
+			iface->snmask = s_wfcStaticIP.prefix;
+			s_wfcState.dhcp_active = false;
+		}
+		else {
+			
+			// Fallback to DHCP 
+			iface->ipaddr = 0;
+			iface->gateway = htonl((169<<24) | (254<<16) | 1);
+			iface->snmask = htonl((255<<24) | (255<<16));
+			s_wfcState.dhcp_active = true;
+		}
+		iface->dns[0] = slot ? slot->ipv4_dns[0] : 0;
+		iface->dns[1] = slot ? slot->ipv4_dns[1] : 0;
 	}
-	iface->dns[0] = slot ? slot->ipv4_dns[0] : 0;
-	iface->dns[1] = slot ? slot->ipv4_dns[1] : 0;
 	iface->flags |= SGIP_FLAG_HWINTERFACE_ENABLED;
 
 	// Start sgIP thread
